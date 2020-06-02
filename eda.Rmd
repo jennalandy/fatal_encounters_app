@@ -1,0 +1,263 @@
+---
+title: "eda"
+author: "Jenna Landy"
+date: "6/1/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r warning=FALSE}
+source('./app_utils.R')
+library(ggplot2)
+library(tidyverse)
+library(rlang)
+
+data <- load_data()
+pop_data <- load_pop_data()
+```
+
+# Plot Over Time
+```{r}
+plot_over_time <- function(
+  data, time_unit, by = 'none',
+  min_date = min(data$date),
+  max_date = max(data$date)
+) {
+  if (by != 'none') {
+    if (by == 'race') {
+      over_time <- data %>%
+        filter(date > min_date, date < max_date) %>%
+        group_by(!!sym(time_unit), !!sym(by)) %>%
+        summarize(n = length(unique_id)) %>%
+        merge(race_props, by = 'race') %>%
+        mutate(
+          prop = case_when(
+            year(!!sym(time_unit)) < 2002 ~ n/(prop_race*total_pop['population_2000']),
+            year(!!sym(time_unit)) >= 2002 & year(!!sym(time_unit)) < 2007 ~ n/(prop_race*total_pop['population_2005']),
+            year(!!sym(time_unit)) >= 2007 & year(!!sym(time_unit)) < 2012 ~ n/(prop_race*total_pop['population_2010']),
+            year(!!sym(time_unit)) >= 2012 ~ n/(prop_race*total_pop['population_2015_est'])
+          ),
+          n_per_100k = prop*100000
+        )
+    } else if (by == 'gender') {
+      over_time <- data %>%
+        filter(date > min_date, date < max_date) %>%
+        group_by(!!sym(time_unit), !!sym(by)) %>%
+        summarize(n = length(unique_id)) %>%
+        merge(gender_props, by = 'gender') %>%
+        mutate(
+          prop = case_when(
+            year(!!sym(time_unit)) < 2002 ~ n/(prop_gender*total_pop['population_2000']),
+            year(!!sym(time_unit)) >= 2002 & year(!!sym(time_unit)) < 2007 ~ n/(prop_gender*total_pop['population_2005']),
+            year(!!sym(time_unit)) >= 2007 & year(!!sym(time_unit)) < 2012 ~ n/(prop_gender*total_pop['population_2010']),
+            year(!!sym(time_unit)) >= 2012 ~ n/(prop_gender*total_pop['population_2015_est'])
+          ),
+          n_per_100k = prop*100000
+        )
+    }
+    
+    p <- ggplot(over_time, aes(x = !!sym(time_unit), y = n_per_100k, color = !!sym(by))) +
+      geom_line(size = 1, alpha = 0.8) 
+    
+  } else {
+    total_pop <- pop_data %>%
+      select(population_2015_est, population_2010, population_2005, population_2000) %>%
+      colSums()
+
+    over_time <- data %>%
+      filter(date > min_date, date < max_date) %>%
+      group_by(!!sym(time_unit)) %>%
+      summarize(n = length(unique_id)) %>%
+      mutate(
+        prop = case_when(
+          year(!!sym(time_unit)) < 2002 ~ n/(total_pop['population_2000']),
+          year(!!sym(time_unit)) >= 2002 & year(!!sym(time_unit)) < 2007 ~ n/(total_pop['population_2005']),
+          year(!!sym(time_unit)) >= 2007 & year(!!sym(time_unit)) < 2012 ~ n/(total_pop['population_2010']),
+          year(!!sym(time_unit)) >= 2012 ~ n/(total_pop['population_2015_est'])
+        ),
+        n_per_100k = prop*100000
+      )
+    
+    p <- ggplot(over_time, aes(x = !!sym(time_unit), y = n_per_100k)) +
+      geom_line(
+        color = teal,
+        size = 1,
+        alpha = 0.8
+      ) 
+  }
+  
+  p +
+    theme_classic() +
+    labs(
+      x = time_unit %>% 
+        substitute() %>% 
+        deparse() %>% 
+        totitle(),
+      y = "Number of Deaths per 100k",
+      title = "Deaths Through Police Interactions Over Time"
+    ) +
+    theme(
+      plot.title.position = 'plot'
+    )
+}
+
+data %>% plot_over_time(time_unit = 'day')
+data %>% plot_over_time(time_unit = 'month', by = 'gender')
+data %>% plot_over_time(time_unit = 'year', by = 'race', min_date = as.Date('2010-01-01'))
+```
+
+# Proportions
+```{r}
+plot_props <- function(data, by) {
+  counts <- data %>%
+    group_by(!!sym(by)) %>%
+    summarize(n = length(unique_id))
+
+  total <- data %>% nrow()
+  
+  counts <- counts %>%
+    mutate(
+      prop = n/total
+    )
+  
+  if (by == 'race') {
+    paste(
+      "African-American/Black individuals make up ",
+      round(100*race_props$prop_race[race_props == 'African-American/Black'], 1),
+      "% of the US population, but this racial group makes up ",
+      round(100*counts$prop[counts$race == 'African-American/Black'], 1),
+      "% of individuals killed in police interactions.", sep = ''
+    )
+  } else if (by == 'gender') {
+    paste(
+      "Men-identifying individuals mae up ",
+      round(100*gender_props$prop_gender[gender_props == 'Male'], 1),
+      "% of the US population, but this group makes up ",
+      round(100*counts$prop[counts$gender == 'Male'], 1),
+      "% of individuals killed in police interactions.", sep = ''
+    )
+  }
+  
+  
+  plot_data <- list(
+    "by" = c(),
+    "prop_of_pop" = c(),
+    "prop_of_killed" = c()
+  )
+  if (by == 'gender') {
+    by_props <- gender_props
+    bys <- gender_props$gender
+  } else if (by == 'race') {
+    by_props <- race_props
+    bys <- race_props$race
+  }
+  
+  prop_col <- names(by_props)[grepl('^prop_', names(by_props))]
+  
+  for (b in bys) {
+    plot_data[['by']] <- c(plot_data[['by']], b)
+    plot_data[['prop_of_pop']] <- c(plot_data[['prop_of_pop']], by_props[[prop_col]][by_props == b])
+    plot_data[['prop_of_killed']] <- c(plot_data[['prop_of_killed']], counts$prop[counts[[by]] == b])
+  }
+  
+  
+  library(grid)
+  if (by == 'gender') {
+    titlex <- 0.3
+    titley <- 1.03
+    t1 <- textGrob(expression(
+      "Distribution of Gender in " * 
+        phantom(bold("US Population")) * " and " * 
+        phantom(bold("Individuals Killed"))
+      ), x = titlex, y = titley, gp = gpar(col = "black")
+    )
+    t2 <- textGrob(expression(
+      phantom("Distribution of Gender in ") * 
+        bold("US Population") * phantom(" and ") * 
+        phantom(bold("Individuals Killed"))
+      ), x = titlex, y = titley, gp = gpar(col = "#d6afb3")
+    )
+    t3 <- textGrob(expression(
+      phantom("Distribution of Gender in ") * 
+        phantom(bold("US Population")) * phantom(" and ") * 
+        bold("Individuals Killed")
+      ), x = titlex, y = titley, gp = gpar(col = "#82222d")
+    )
+  } else if (by == 'race') {
+    titlex <- 0.27
+    titley <- 1.03
+    t1 <- textGrob(expression(
+      "Distribution of Racial Groups in " * 
+        phantom(bold("US Population")) * " and " * 
+        phantom(bold("Individuals Killed"))
+      ), x = titlex, y = titley, gp = gpar(col = "black")
+    )
+    t2 <- textGrob(expression(
+      phantom("Distribution of Racial Groups in ") * 
+        bold("US Population") * phantom(" and ") * 
+        phantom(bold("Individuals Killed"))
+      ), x = titlex, y = titley, gp = gpar(col = "#d6afb3")
+    )
+    t3 <- textGrob(expression(
+      phantom("Distribution of Racial Groups in ") * 
+        phantom(bold("US Population")) * phantom(" and ") * 
+        bold("Individuals Killed")
+      ), x = titlex, y = titley, gp = gpar(col = "#82222d")
+    )
+  }
+  
+  data.frame(plot_data) %>%
+    pivot_longer(cols = c('prop_of_pop','prop_of_killed')) %>%
+    ggplot(aes(by, x = value, fill = name, group = name)) +
+      geom_bar(position = 'dodge', stat = 'identity') +
+      annotation_custom(grobTree(t1, t2, t3)) +
+      coord_cartesian(clip = "off") +
+      theme_classic() +
+      labs(
+        x = "",
+        y = "",
+        title = "",
+        fill = ''
+      ) +
+      scale_fill_manual(
+        breaks = c('prop_of_pop', 'prop_of_killed'),
+        values = c('#d6afb3', '#82222d')
+      ) +
+      theme(
+        plot.title.position = 'plot',
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_blank(),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_text(
+           color = light_grey
+        ),
+        axis.text.y = element_text(
+          hjust = 1,
+          vjust = 0,
+          face = 'bold',
+          size = 9,
+          margin = margin(r = -10)
+        ),
+        panel.grid.major.x = element_line(
+          color = light_grey,
+          size = 0.1
+        ),
+        legend.position = 'none'
+      ) 
+}
+
+plot_props(data, 'race')
+plot_props(data, 'gender')
+```
+
+
+
+
+
+
+
