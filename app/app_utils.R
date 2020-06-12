@@ -75,7 +75,7 @@ colnames(gender_props) <- c("gender", "prop_gender")
 # Functionality Functions ####
 
 load_data <- function() {
-  filename <- "../data/FATAL ENCOUNTERS DOT ORG SPREADSHEET (See Read me tab).xlsx"
+  filename <- "data/FATAL ENCOUNTERS DOT ORG SPREADSHEET (See Read me tab).xlsx"
   data <- read_excel(filename, sheet = 1) %>%
     clean_names() %>%
     dplyr::select(
@@ -128,7 +128,7 @@ load_data <- function() {
 } 
 
 load_pop_data <- function() {
-  filename <- "../data/FATAL ENCOUNTERS DOT ORG SPREADSHEET (See Read me tab).xlsx"
+  filename <- "data/FATAL ENCOUNTERS DOT ORG SPREADSHEET (See Read me tab).xlsx"
   pop_data <- read_excel(filename, sheet = 2) %>%
     clean_names() %>%
     dplyr::select(
@@ -430,7 +430,7 @@ plot_props <- function(data, by) {
 
 plot_states <- function(data, pop_data, in_year) {
   all_data <- data
-  abbr_to_name <- read.csv('../data/abbr-name.csv', header = FALSE)
+  abbr_to_name <- read.csv('data/abbr-name.csv', header = FALSE)
   names(abbr_to_name) <- c('abbr','name')
   
   
