@@ -3,7 +3,7 @@
 
 ## 1. Blurb
 
-The [Fatal Encounters](https://fatalencounters.org/) project was founded on the premise that Americans should have the ability to track circumstances where police use deadly force, even though these circumstances are not tracked by any governmental organization. This project, run by D. Brian Burghart, has built a database of all deaths through police interaction in the United States since January 1, 2020.
+The [Fatal Encounters](https://fatalencounters.org/) project was founded on the premise that Americans should have the ability to track circumstances where police use deadly force, even though these circumstances are not tracked by any governmental organization. This project, run by D. Brian Burghart, has built a database of all deaths through police interaction in the United States since January 1, 2002.
 
 My Shiny Application will provide a simple, interactive format for exploring this dataset. Fatal Encounters has done a fabulous job gathering this data, keeping it publically available, and creating a simple search engine for specific cases. The purpose of my application is to make the information from the database more accessible to the general public, not just data scientists and statisticians.
 
