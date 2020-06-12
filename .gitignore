@@ -1,3 +1,8 @@
+*.html
+FinalReflection*
+gaussians*
+Reflection*
+Tutorial*
 .Rproj.user
 .Rhistory
 .RData

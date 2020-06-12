@@ -14,6 +14,8 @@ source('./app_utils.R')
 library(ggplot2)
 library(tidyverse)
 library(rlang)
+library(leaflet)
+library(geojsonio)
 
 data <- load_data()
 pop_data <- load_pop_data()
@@ -109,7 +111,7 @@ data %>% plot_over_time(time_unit = 'month', by = 'gender')
 data %>% plot_over_time(time_unit = 'year', by = 'race', min_date = as.Date('2010-01-01'))
 ```
 
-# Proportions
+# Plot Proportions
 ```{r}
 plot_props <- function(data, by) {
   counts <- data %>%
@@ -253,6 +255,96 @@ plot_props <- function(data, by) {
 
 plot_props(data, 'race')
 plot_props(data, 'gender')
+```
+
+# Plot by location
+```{r}
+plot_states <- function(data, in_year) {
+  all_data <- data
+  
+  data <- data %>%
+    filter(year(date) == in_year)
+  
+  states <- geojson_read( 
+    x = "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
+    what = "sp"
+  )
+  
+  data_by_state <- data %>%
+    group_by(location_of_death_state) %>%
+    summarize(
+      n = length(unique_id)
+    )
+  
+  abbr_to_name <- read.csv('abbr-name.csv', header = FALSE)
+  names(abbr_to_name) <- c('abbr','name')
+  data_by_state <- data_by_state %>%
+    merge(abbr_to_name, by.y = 'abbr', by.x = 'location_of_death_state')
+  
+  data_by_state <- data_by_state[data_by_state$name %in% states$name,]
+  data_by_state <- data_by_state[order(data_by_state$name),]
+  
+  states <- states[states$name %in% data_by_state$name,]
+  states <- states[order(states$name),]
+  
+  labels <- paste(data_by_state$name, ": ", data_by_state$n, " deaths", sep = '')
+  
+  states$n <- data_by_state$n
+  
+  
+  max_n <- all_data %>%
+    group_by(date_year, location_of_death_state) %>%
+    summarize(n = length(unique_id)) %>%
+    pull(n) %>%
+    max()
+  
+  bins <- seq(1, ceiling(max_n/100)*100 + 100, length.out = 10)
+  pal <- colorBin("YlOrRd", domain = states$n, bins = bins)
+  
+  map <- leaflet(states) %>%
+    addTiles() %>%
+    setView(-98, 37.8, 4) %>%
+    addPolygons(
+      fillColor = ~pal(n),
+      weight = 2,
+      opacity = 1,
+      color = "white",
+      dashArray = "3",
+      fillOpacity = 0.7,
+      highlight = highlightOptions(
+        weight = 5,
+        color = "#666",
+        dashArray = "",
+        fillOpacity = 0.7,
+        bringToFront = TRUE
+      ),
+      label = labels,
+      labelOptions = labelOptions(
+        style = list(
+          "font-weight" = "normal", 
+          padding = "3px 8px"
+        ),
+        textsize = "15px",
+        direction = "auto"
+      )
+    )
+  
+  line <- all_data %>%
+    filter(date_year <= in_year) %>%
+    group_by(date_year) %>%
+    summarize(n = length(unique_id)) %>%
+    ggplot(aes(x = date_year, y = n)) +
+    geom_point() +
+    geom_line()
+  
+  out <- list()
+  out[['map']] = map
+  out[['line']] = line
+  out
+}
+
+plot_states(data, 2002)
+plot_states(data, 2017)
 ```
 
 
