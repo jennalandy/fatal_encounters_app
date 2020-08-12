@@ -1,3 +1,7 @@
+# Shiny App
+
+[Link to the application on shinyapps.io.](https://jennalandy.shinyapps.io/fatal_encounters/?_ga=2.23629690.1903753223.1597242578-1026825113.1597242578)
+
 # Data
 
 Most of the data comes from the [Fatal Encounters](https://fatalencounters.org/) project, which was founded on the premise that Americans should have the ability to track circumstances where police use deadly force, even though these circumstances are not tracked by any governmental organization. This project, run by D. Brian Burghart, has built a database of all deaths through police interaction in the United States since January 1, 2000.
