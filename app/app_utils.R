@@ -66,7 +66,7 @@ race_props$race <- names(race_props_list)
 gender_props_list <- list(
   "Female" = 0.508,
   "Male" = 0.492,
-  "Transgender" = 0.068
+  "Transgender" = 0.006
 )
 gender_props <- data.frame(t(data.frame(gender_props_list))) %>%
   rownames_to_column()
